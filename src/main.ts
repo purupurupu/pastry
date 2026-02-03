@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, clipboard, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, globalShortcut, nativeImage } from 'electron';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import started from 'electron-squirrel-startup';
 import { ClipboardMonitor, ClipboardEntry } from './main/clipboard-monitor';
 import { getHistory, saveHistory, getSettings, saveSettings } from './main/store';
@@ -108,8 +109,25 @@ const setupIPC = () => {
     return history;
   });
 
-  ipcMain.on('clipboard:copy', (_event, content: string) => {
-    clipboard.writeText(content);
+  ipcMain.on('clipboard:copy', (_event, content: string, type: 'text' | 'image' | 'file') => {
+    if (type === 'image') {
+      // content is a data URL for images
+      const image = nativeImage.createFromDataURL(content);
+      clipboard.writeImage(image);
+    } else if (type === 'file') {
+      // content is a file path - use osascript to copy file to clipboard on macOS
+      if (process.platform === 'darwin') {
+        try {
+          // Escape single quotes in file path
+          const escapedPath = content.replace(/'/g, "'\\''");
+          execSync(`osascript -e 'set the clipboard to POSIX file "${escapedPath}"'`);
+        } catch (error) {
+          console.error('Failed to copy file to clipboard:', error);
+        }
+      }
+    } else {
+      clipboard.writeText(content);
+    }
   });
 
   ipcMain.on('clipboard:delete', (_event, id: string) => {

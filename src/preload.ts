@@ -3,9 +3,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 export interface ClipboardItem {
   id: string;
   content: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'file';
   timestamp: number;
   preview?: string;
+  filePath?: string;
 }
 
 export interface Settings {
@@ -23,8 +24,8 @@ const electronAPI = {
       ipcRenderer.removeListener('clipboard:change', subscription);
     };
   },
-  copyToClipboard: (content: string) => {
-    ipcRenderer.send('clipboard:copy', content);
+  copyToClipboard: (content: string, type: 'text' | 'image' | 'file' = 'text') => {
+    ipcRenderer.send('clipboard:copy', content, type);
   },
   getHistory: (): Promise<ClipboardItem[]> => {
     return ipcRenderer.invoke('clipboard:get-history');
