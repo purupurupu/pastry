@@ -44,6 +44,20 @@ export class ClipboardMonitor {
   private lastImageHash: string = '';
   private lastFileHash: string = '';
   private callback: ClipboardChangeCallback | null = null;
+  private skipNextDetection = false;
+
+
+  /**
+   * Skip the next clipboard change detection.
+   * Used when the app itself copies something to avoid duplicate history entries.
+   */
+  public skipNext(): void {
+    this.skipNextDetection = true;
+    // Reset after 600ms (polling interval 500ms + margin)
+    setTimeout(() => {
+      this.skipNextDetection = false;
+    }, 600);
+  }
 
   start(callback: ClipboardChangeCallback, intervalMs = 500): void {
     this.callback = callback;
@@ -62,6 +76,14 @@ export class ClipboardMonitor {
   }
 
   private check(): void {
+    // If skip flag is set, just update hashes without emitting
+    const shouldSkip = this.skipNextDetection;
+    if (shouldSkip) {
+      this.skipNextDetection = false;
+      this.updateHashes();
+      return;
+    }
+
     // Check for files first (macOS uses 'public.file-url' format)
     const fileBuffer = clipboard.readBuffer('public.file-url');
     if (fileBuffer && fileBuffer.length > 0) {

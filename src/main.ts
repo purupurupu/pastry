@@ -110,6 +110,9 @@ const setupIPC = () => {
   });
 
   ipcMain.on('clipboard:copy', (_event, content: string, type: 'text' | 'image' | 'file') => {
+    // Skip next detection to avoid duplicate history entry
+    clipboardMonitor.skipNext();
+
     if (type === 'image') {
       // content is a data URL for images
       const image = nativeImage.createFromDataURL(content);

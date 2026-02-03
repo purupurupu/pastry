@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_serena_serena__*",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(tsc *)",
+      "Bash(eslint *)",
+      "Bash(prettier *)",
+      "Bash(ls *)",
+      "Bash(pwd)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(which *)",
+      "Bash(echo *)",
+      "Bash(open *)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "LSP",
+      "NotebookEdit"
+    ]
+  }
+}
