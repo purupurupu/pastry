@@ -3,6 +3,7 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { ClipboardMonitor, ClipboardEntry } from './main/clipboard-monitor';
 import { getHistory, saveHistory, getSettings, saveSettings } from './main/store';
+import { createTray, destroyTray } from './main/tray';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -12,6 +13,7 @@ if (started) {
 let mainWindow: BrowserWindow | null = null;
 const clipboardMonitor = new ClipboardMonitor();
 let history: ClipboardEntry[] = [];
+let isQuitting = false;
 
 const createWindow = () => {
   const settings = getSettings();
@@ -26,6 +28,7 @@ const createWindow = () => {
     vibrancy: 'under-window',
     visualEffectState: 'active',
     show: false,
+    skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -40,6 +43,14 @@ const createWindow = () => {
   mainWindow.on('blur', () => {
     // Hide window when it loses focus (like Paste app)
     if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      mainWindow?.hide();
+    }
+  });
+
+  // Prevent window from being closed, just hide it
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
       mainWindow?.hide();
     }
   });
@@ -61,6 +72,12 @@ const createWindow = () => {
       mainWindow?.show();
       mainWindow?.focus();
     }
+  });
+
+  // Create tray icon
+  createTray(mainWindow, () => {
+    isQuitting = true;
+    app.quit();
   });
 };
 
@@ -136,12 +153,18 @@ app.on('ready', () => {
   // Load history from disk
   history = getHistory();
 
+  // Hide dock icon on macOS (menu bar app)
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.hide();
+  }
+
   createWindow();
   setupIPC();
   setupClipboardMonitor();
 });
 
 app.on('window-all-closed', () => {
+  // Don't quit on macOS when window is closed
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -155,7 +178,12 @@ app.on('activate', () => {
   }
 });
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.on('will-quit', () => {
   clipboardMonitor.stop();
   globalShortcut.unregisterAll();
+  destroyTray();
 });
