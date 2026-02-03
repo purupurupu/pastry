@@ -1,0 +1,54 @@
+import { contextBridge, ipcRenderer } from 'electron';
+
+export interface ClipboardItem {
+  id: string;
+  content: string;
+  type: 'text' | 'image' | 'file';
+  timestamp: number;
+  preview?: string;
+  filePath?: string;
+}
+
+export interface Settings {
+  maxHistory: number;
+  shortcut: string;
+}
+
+const electronAPI = {
+  onClipboardChange: (callback: (item: ClipboardItem) => void) => {
+    const subscription = (_event: Electron.IpcRendererEvent, item: ClipboardItem) => {
+      callback(item);
+    };
+    ipcRenderer.on('clipboard:change', subscription);
+    return () => {
+      ipcRenderer.removeListener('clipboard:change', subscription);
+    };
+  },
+  copyToClipboard: (content: string, type: 'text' | 'image' | 'file' = 'text') => {
+    ipcRenderer.send('clipboard:copy', content, type);
+  },
+  getHistory: (): Promise<ClipboardItem[]> => {
+    return ipcRenderer.invoke('clipboard:get-history');
+  },
+  deleteItem: (id: string) => {
+    ipcRenderer.send('clipboard:delete', id);
+  },
+  clearHistory: () => {
+    ipcRenderer.send('clipboard:clear');
+  },
+  // Settings
+  getSettings: (): Promise<Settings> => {
+    return ipcRenderer.invoke('settings:get');
+  },
+  saveSettings: (settings: Partial<Settings>): Promise<void> => {
+    return ipcRenderer.invoke('settings:save', settings);
+  },
+};
+
+contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+
+declare global {
+  interface Window {
+    electronAPI: typeof electronAPI;
+  }
+}
