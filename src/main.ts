@@ -1,43 +1,123 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, globalShortcut } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+import { ClipboardMonitor, ClipboardEntry } from './main/clipboard-monitor';
+import { getHistory, saveHistory, getSettings } from './main/store';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
+let mainWindow: BrowserWindow | null = null;
+const clipboardMonitor = new ClipboardMonitor();
+let history: ClipboardEntry[] = [];
+
 const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
+  const settings = getSettings();
+
+  mainWindow = new BrowserWindow({
+    width: 400,
     height: 600,
+    minWidth: 300,
+    minHeight: 400,
+    frame: false,
+    transparent: true,
+    vibrancy: 'under-window',
+    visualEffectState: 'active',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
-  // and load the index.html of the app.
+  mainWindow.on('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
+  mainWindow.on('blur', () => {
+    // Hide window when it loses focus (like Paste app)
+    if (!MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      mainWindow?.hide();
+    }
+  });
+
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // Register global shortcut
+  globalShortcut.register(settings.shortcut, () => {
+    if (mainWindow?.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow?.show();
+      mainWindow?.focus();
+    }
+  });
 };
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+const setupClipboardMonitor = () => {
+  const settings = getSettings();
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+  clipboardMonitor.start((entry) => {
+    // Add to beginning of history
+    history.unshift(entry);
+
+    // Limit history size
+    if (history.length > settings.maxHistory) {
+      history.pop();
+    }
+
+    // Save to disk
+    saveHistory(history);
+
+    // Send to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('clipboard:change', entry);
+    }
+  });
+};
+
+const setupIPC = () => {
+  ipcMain.handle('clipboard:get-history', () => {
+    return history;
+  });
+
+  ipcMain.on('clipboard:copy', (_event, content: string) => {
+    clipboard.writeText(content);
+  });
+
+  ipcMain.on('clipboard:delete', (_event, id: string) => {
+    const index = history.findIndex((item) => item.id === id);
+    if (index !== -1) {
+      history.splice(index, 1);
+      saveHistory(history);
+    }
+  });
+
+  ipcMain.on('clipboard:clear', () => {
+    history = [];
+    saveHistory(history);
+  });
+};
+
+app.on('ready', () => {
+  // Load history from disk
+  history = getHistory();
+
+  createWindow();
+  setupIPC();
+  setupClipboardMonitor();
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -45,12 +125,14 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  } else {
+    mainWindow?.show();
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+app.on('will-quit', () => {
+  clipboardMonitor.stop();
+  globalShortcut.unregisterAll();
+});
