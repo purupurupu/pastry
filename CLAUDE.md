@@ -48,6 +48,13 @@ Renderer Process (src/renderer.tsx)
 
 `ClipboardItem`/`ClipboardEntry`は3箇所で定義されています（`src/types.ts`、`src/preload.ts`、`src/main/clipboard-monitor.ts`）。変更時は同期を忘れずに。
 
+## Gitワークフロー
+
+- 機能追加・バグ修正は必ず **featureブランチ** を切って作業する
+- ブランチ名は `feature/機能名` または `fix/修正内容` の形式
+- 作業完了後は **PRを作成** してmainにマージする
+- mainブランチに直接コミットしない
+
 ## macOS固有の動作
 
 - メニューバーアプリとして動作（Dockアイコンは`app.dock.hide()`で非表示）
