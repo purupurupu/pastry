@@ -8,6 +8,11 @@ export interface ClipboardItem {
   preview?: string;
 }
 
+export interface Settings {
+  maxHistory: number;
+  shortcut: string;
+}
+
 const electronAPI = {
   onClipboardChange: (callback: (item: ClipboardItem) => void) => {
     const subscription = (_event: Electron.IpcRendererEvent, item: ClipboardItem) => {
@@ -29,6 +34,13 @@ const electronAPI = {
   },
   clearHistory: () => {
     ipcRenderer.send('clipboard:clear');
+  },
+  // Settings
+  getSettings: (): Promise<Settings> => {
+    return ipcRenderer.invoke('settings:get');
+  },
+  saveSettings: (settings: Partial<Settings>): Promise<void> => {
+    return ipcRenderer.invoke('settings:save', settings);
   },
 };
 

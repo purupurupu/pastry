@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, clipboard, globalShortcut } from 'electron
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { ClipboardMonitor, ClipboardEntry } from './main/clipboard-monitor';
-import { getHistory, saveHistory, getSettings } from './main/store';
+import { getHistory, saveHistory, getSettings, saveSettings } from './main/store';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -106,6 +106,29 @@ const setupIPC = () => {
   ipcMain.on('clipboard:clear', () => {
     history = [];
     saveHistory(history);
+  });
+
+  // Settings
+  ipcMain.handle('settings:get', () => {
+    return getSettings();
+  });
+
+  ipcMain.handle('settings:save', (_event, newSettings: { maxHistory?: number; shortcut?: string }) => {
+    const oldSettings = getSettings();
+    saveSettings(newSettings);
+
+    // Re-register shortcut if changed
+    if (newSettings.shortcut && newSettings.shortcut !== oldSettings.shortcut) {
+      globalShortcut.unregister(oldSettings.shortcut);
+      globalShortcut.register(newSettings.shortcut, () => {
+        if (mainWindow?.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow?.show();
+          mainWindow?.focus();
+        }
+      });
+    }
   });
 };
 

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ClipboardItem } from './types';
 import { ClipboardList } from './components/ClipboardList';
+import { Settings } from './components/Settings';
 
 export function App() {
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     // Load initial history
@@ -33,6 +35,10 @@ export function App() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  if (showSettings) {
+    return <Settings onClose={() => setShowSettings(false)} />;
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -43,6 +49,13 @@ export function App() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        <button
+          className="settings-btn"
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+        >
+          ⚙
+        </button>
       </header>
       <main className="app-main">
         <ClipboardList

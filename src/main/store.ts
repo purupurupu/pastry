@@ -14,7 +14,7 @@ const store = new Store<StoreSchema>({
     history: [],
     settings: {
       maxHistory: 100,
-      shortcut: 'CommandOrControl+Shift+V',
+      shortcut: 'CommandOrControl+Option+V',
     },
   },
 });
